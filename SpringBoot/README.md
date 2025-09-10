@@ -1,3 +1,106 @@
+# Spring Boot Security
+- Spring Security 전역 보안 설정 담당
+  - 어떤 요청에 인증/권한이 필요한지
+  - 어떤 인증 방식을 쓸지
+  - 세션 관리 정책은 뭔지
+  - CORS 정책은 어떻게 할지
+
+### Dependency
+- Gradle
+  ```gradle
+  dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+  }
+  ```
+
+- Maven
+  ```xml
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+  </dependencies>
+  ```
+
+<br/>
+
+### 🌟 `SecurityConfig.java` Best Practice
+- Spring Boot **3.5.5** + Spring Security **6.x** 기준
+
+```java
+package shop.mtconding.bank.config;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import shop.mtconding.bank.domain.user.UserEnum;
+
+@Configuration // 이 클래스가 Spring 설정 클래스 임을 의미, 내부에 정의 된 @Bean 메서드는 Spring IoC 컨테이너에 등록됨.
+public class SecurityConfig {
+  private final Logger log = LoggerFactory.getLogger(getClass());
+
+  /** 
+   * 사용자의 비밀번호를 해싱(암호화)하는 데 사용.
+   * BCrypt는 보안 강도가 높은 알고리즘이라서 Spring Security에서 기본으로 추천 됨.
+   * 회원가입 시 비밀번호를 암호화하고, 로그인 시 입력한 비밀번호와 DB에 저장된 저장된 암호화 값을 비교하는 용도로 사용.
+   */ 
+  @Bean 
+  public BCryptPasswordEncoder passwordEncoder() {
+    log.debug("Debug: BCryptPasswordEncoder 빈 등록 됨");
+    return new BCryptPasswordEncoder();
+  }
+
+  // JWT 서버를 만들 예정. Session 사용 안함.
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http.headers(headers -> headers.frameOptions(frame -> frame.disable())); // iframe 허용 안함
+    http.csrf(AbstractHttpConfigurer::disable); // enable이면 postman 작동 안함
+    http.cors(cors -> cors.configurationSource(configurationSource())); // 자바스크립트 요청 거부
+
+    // jSessionId를 서버쪽에서 관리안하겠다는 뜻!
+    http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)); 
+
+    // react, 앱을 이용하여 로그인, spring boot security에서 기본적으로 제공하는 ID/PW 치는 창 이용 안함.
+    http.formLogin(AbstractHttpConfigurer::disable);
+    // httpBasic은 브라우저가 팝업창을 이용해서 사용자 인증을 진행하는 것 해제
+    http.httpBasic(AbstractHttpConfigurer::disable);
+
+    http.authorizeHttpRequests(auth -> auth
+                                .requestMatchers("/api/s/**").authenticated() // 인증
+                                .requestMatchers("api/admin/**").hasRole(UserEnum.ADMIN.name()) // 권한 확인
+                                .anyRequest().permitAll()
+                                );
+    
+    return http.build();
+  } 
+
+  public CorsConfigurationSource configurationSource() {
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.addAllowedHeader("*"); 
+    configuration.addAllowedMethod("*"); // GET, POST, PUT, DELETE (Javascript 요청 허용)
+    configuration.addAllowedOriginPattern("*"); // 모든 IP 주소 허용 (프론트 앤드 IP만 허용 react)
+    configuration.setAllowCredentials(true); // 클라이언트에서 쿠키 요청 허용
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+
+    return source;
+  }
+}
+```
+
+
 # Type Declaration (타입 정의)
 ```
 public [타입] name () {
