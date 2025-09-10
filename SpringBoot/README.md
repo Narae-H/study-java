@@ -28,6 +28,7 @@
 ### 🌟 `SecurityConfig.java` Best Practice
 - Spring Boot **3.5.5** + Spring Security **6.x** 기준
 
+TODO(9/10): Security부터 정리 필요
 ```java
 package shop.mtconding.bank.config;
 
