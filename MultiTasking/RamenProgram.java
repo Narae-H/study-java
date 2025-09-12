@@ -1,3 +1,4 @@
+package MultiTasking;
 /**
  *  참고 사이트: [얄팍한 코딩사전](https://www.youtube.com/watch?v=iks_Xb9DtTM)
  * How to run:
