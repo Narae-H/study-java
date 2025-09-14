@@ -13,8 +13,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import jakarta.servlet.http.HttpServletResponse;
 import shop.mtcoding.bank.domain.user.UserEnum;
+import shop.mtcoding.bank.util.CustomResponseUtil;
 
 @Configuration
 public class SecurityConfig {
@@ -50,9 +50,7 @@ public class SecurityConfig {
     // 4. Exception 응답을 JSON으로 통일: '브라우저 호출(Whitelable Error Page), Postman호출 (JSON 혹은 상태코드), Test코드(빈 Body + status)'의 resturn 형태를 전부 다 JSON으로 동일하게 맞추기
     http.exceptionHandling( exception -> exception
       .authenticationEntryPoint( (request, response, authException) -> {
-        // response.setContentType("application/json;charset=utf-8");
-        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.getWriter().println("error");
+        CustomResponseUtil.unAuthentication(response);
       })
     );
 

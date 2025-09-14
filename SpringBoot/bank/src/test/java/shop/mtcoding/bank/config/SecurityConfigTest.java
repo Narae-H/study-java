@@ -1,5 +1,6 @@
 package shop.mtcoding.bank.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,8 @@ public class SecurityConfigTest {
   @Autowired
   private MockMvc mvc;  
 
+  // 서버는 일관성있게 에러가 리턴되어야 한다.
+  // 내가 모르는 에러가 프로트에게 날라가지 않게, 내가 직접 다 제어하자.
   @Test
   public void authentication_test() throws Exception {
     // given: 테스트에 필요한 데이터
@@ -30,20 +33,26 @@ public class SecurityConfigTest {
     int httpStatusCode = resultActions.andReturn().getResponse().getStatus();
     System.out.println("테스트 : " + httpStatusCode);
     System.out.println("테스트 : " + responseBody);
+
     // then
-  
+    assertThat(httpStatusCode).isEqualTo(401);
   }
 
   @Test
   public void authorization_test() throws Exception {
     // given
-    
-
+      
+  
     // when
-
+    ResultActions resultActions = mvc.perform(get("/api/admin/hello"));
+    String responseBody = resultActions.andReturn().getResponse().getContentAsString();
+  
+    int httpStatusCode = resultActions.andReturn().getResponse().getStatus();
+    System.out.println("테스트 : " + httpStatusCode);
+    System.out.println("테스트 : " + responseBody);
 
     // then
-  
+    assertThat(httpStatusCode).isEqualTo(403);
   }
   
 }
