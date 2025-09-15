@@ -35,21 +35,131 @@
   ```
 </details>
 
+## 실습
+
+### 1. 스프링부트 프로젝트 생성
+- Spring Initializr: [https://start.spring.io/](https://start.spring.io/)
+- Dependencies:
+  - Spring Web
+  - Spring Data JPA
+  - H2 Database (간단 실습용)
+- Java 17 이상 추천
+- application.propertise (H2 기준)
+  ```propertise
+  spring.datasource.url=jdbc:h2:mem:testdb
+  spring.datasource.driver-class-name=org.h2.Driver
+  spring.datasource.username=sa
+  spring.datasource.password=
+  spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+  spring.h2.console.enabled=true
+  ```
+
+### 2. Entity 만들기
+  ```java
+  import jakarta.persistence.*;
+
+  @Entity
+  public class Member {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    private int age;
+
+    // 기본 생성자 필수
+    protected Member() {}
+
+    public Member(String name, int age) {
+      this.name = name;
+      this.age = age;
+    }
+
+    // getter / setter
+    public Long getId() { return id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public int getAge() { return age; }
+    public void setAge(int age) { this.age = age; }
+  }
+  ```
+
+### 3. Repository 만들기
+- `JpaRepository`를 상속하면 **기본 CRUD 메서드**가 자동으로 제공
+  - save(Member entity): 저장
+  - findById(Long id): PK로 조회
+  - findAll(): 전체 조회
+  - delete(Member entity): 삭제
+- 직접 SQL을 작성하지 않고, **객체 중심 CRUD** 가능
+- 필요하면 메서드 이름으로 자동 쿼리 생성 가능
+
+```java
+import org.springframework.data.jpa.repository.JpaRepository;
+
+// public interface [엔티티이름]Repository extends JpaRepository<[엔티티 클래스], [PK 타입]> { }
+public interface MemberRepository extends JpaRepository<Member, Long> {
+  // 기본 CRUD 가능
+  // 필요하면 findByName 등 커스텀 메서드 정의 가능
+}
+```
+
+### 4. CRUD 실습
+```java
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+@Component
+public class TestDataLoader implements CommandLineRunner {
+
+  private final MemberRepository memberRepository;
+
+  public TestDataLoader(MemberRepository memberRepository) {
+    this.memberRepository = memberRepository;
+  }
+
+  @Override
+  @Transactional
+  public void run(String... args) throws Exception {
+    // 저장
+    Member member = new Member("John", 36);
+    memberRepository.save(member);
+
+    // 조회
+    Member found = memberRepository.findById(member.getId()).orElse(null);
+    System.out.println("Found: " + found.getName());
+
+    // 수정
+    found.setAge(20);
+    memberRepository.save(found);
+
+    // 삭제
+    memberRepository.delete(found);
+  }
+}
+
+```
+
+<br/>
+
 ## 📌 자주 사용하는 JPA Annotation
 
-- [@Entity](#entity)<sup>*</sup>
-- [@Table](#table)
-- [@Id](#id)<sup>*</sup>
-- [@GeneratedValue](#generatedvalue)
-- [@OneToMany / @ManyToOne / @OneToOne / @ManyToMany]()
-- [@Column](#column)
-- [@EntityListeners](#entitylisteners)
-- [@CreatedDate / @LastModifiedDate](#createddate--lastmodifieddate)
-- [@Enumerated](#enumerated)
-- [@Lob](#lob)
-- [@Transient](#transient)
+1. 엔티티 
+  - [@Entity](#entity)<sup>*</sup>
+  - [@Table](#table)
+  - PK: [@Id](#id)<sup>*</sup> / [@GeneratedValue](#generatedvalue)
+  - 컬럼 매핑: [@Column](#column)
+  - 관계 매핑: [@OneToMany / @ManyToOne / @OneToOne / @ManyToMany]()
+  - [@EntityListeners](#entitylisteners)
+  - [@CreatedDate / @LastModifiedDate](#createddate--lastmodifieddate)
+  - [@Enumerated](#enumerated)
+  - [@Lob](#lob)
+  - [@Transient](#transient)
 
-<sup>*는 필수 값</sup>
+  <sup>*는 필수 값</sup>
 
 ### @Entity
 - 해당 클래스가 **DB 테이블과 매핑**되는 Entity임을 표시
@@ -158,7 +268,7 @@
   private int tempValue;
   ```
 
----
+<br/>
 
 ## 🌟 JPA + Spring Boot Best Practice (폴더 구조)
 
