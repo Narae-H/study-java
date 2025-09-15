@@ -149,66 +149,146 @@ JUnit 5 Test Lifecycle
 
 <br/>
 
-## 테스트 코드 구조
 
-TODO: 삭제?
-```
-src/main/java
- └─ com.example.demo
-     ├─ model/User.java          → 테스트 대상 데이터 모델
-     ├─ repository/UserRepository.java  → 인터페이스(Mock 대상)
-     └─ service/UserService.java → 비즈니스 로직
+## 🌱 스프링부트 테스트 코드 작성 순서
 
-src/test/java
- └─ com.example.demo.unit
-     └─ UserServiceTest.java    → JUnit5 + Mockito 테스트 코드
+### 1. 테스트 클래스 생성
+- `src/test/java` 밑에 메인 코드와 동일한 패키지 구조로 생성.
+- 네이밍규칙: `클래스명 + Test` 형태 권장  
+```swift
+src/main/java/shop/mtcoding/bank/config/SecurityConfig.java
+src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
 ```
 
-## Mockito Test (JUnit + MockMvc)
-- 로그인 페이지 만들고 제대로 뜨나 테스트?
+### 2. 에노테이션으로 환경 세팅
+- 어떤 방식으로 실행할지 선택: 
 
-### 1. 테스트 코드 구조
+  | 테스트 종류                           | 사용하는 애노테이션                                                   | 예시 | 
+  | ----------------------------------- | ------------------------------------------------------------------ |  -------------------------------- |
+  | [**순수 단위 테스트 (Unit Test)**](#순수-단위-테스트-test)        | `@Test` (JUnit 기본)                     | 비밀번호 암호화 메서드 검증                  |
+  | [**JPA 단위 테스트 (Unit Test)**](#jpa-단위-테스트-datajpatest) | `@DataJpaTest` (JUnit 기본)               | DB에 data insert 확인                  |
+  | [**웹 레이어 테스트 (Controller/Filter 등)**](#웹-레이어-단위-테스트-webmvctest--mockmvc) | `@WebMvcTest`<br>또는<br>`@SpringBootTest` + `@AutoConfigureMockMvc` |  인증 실패 시 403 Forbidden 응답 확인      |
+  | [**통합 테스트 (Integration Test)**](#통합-테스트-springboottest)       | `@SpringBootTest`                  | 회원가입 → DB insert → 로그인까지 시나리오 실행 |
 
-```
-src/main/java
-└─ shop.mtcoding.bank
-      ├── BankApplication.java       // 메인 클래스
-      └── config/SecurityConfig.java // Spring Security 설정
+  <details>
+  <summary>테스트 종류 자세히 설명</summary>
 
-src/test/java
-└─ shop.mtcoding.bank
-      ├── BankApplicationTests.java      // 메인 클래스
-      └── config/SecurityConfigTest.java // Spring Security 설정
-```
 
-### 2. 테스트 클래스 위치 및 패키지
-**1. 패키지 일치**  
-   - 테스트 클래스는 **메인 클래스와 같은 패키지** 혹은 **하위 패키지**에 위치해야 Spring Boot가 자동으로 컨텍스트를 찾음.
-   - 예: `shop.mtcoding.bank.config.SecurityConfigTest.java` → 메인 클래스 `shop.mtcoding.bank.BankApplication`과 동일 패키지 계층.
+  #### 순수 단위 테스트: @Test
+  - 목표: `로직만 검증`하고 싶을 때 (DB/스프링 컨텍스트 필요 없음), 순수 자바 테스트 (스프링 필요 없음)
 
-**2. 테스트 클래스 네이밍 규칙**  
-   - `클래스명 + Test` 형태 권장  
-   - 예: `SecurityConfigTest`, `UserServiceTest`, `HelloControllerTest`
+  ```java
+  class CalculatorTest {
 
-### 3. 테스트 작성 순서
+    // Calculator는 스프링 빈도 아니고, DB도 필요 없으니 @Test만 있으면 됨.
+    @Test
+    void add_test() {
+      Calculator cal = new Calculator();
+      assertThat(cal.add(2, 3)).isEqualTo(5);
+    }
+  }
+  ```
 
-**1. 환경설정**
+  #### JPA 단위 테스트: @DataJpaTest
+  - 목표: `Repository (DB 쿼리)` 가 제대로 동작하는지 확인
+
+  ```java
+  // DB 관련 Bean만 로딩해주면 되니까 @DataJpaTest 씀.
+  @DataJpaTest
+  class UserRepositoryTest {
+
+    @Autowired
+    UserRepository userRepository;
+
+    @Test
+    void save_test() {
+      User user = new User("John");
+      User saved = userRepository.save(user);
+
+      assertThat(saved.getId()).isNotNull(); // DB에 들어갔는지 확인
+    }
+  }
+  ```
+
+  #### 웹 레이어 단위 테스트: @WebMvcTest + MockMvc
+  - 목표: Controller → Service 호출 흐름을 검증하고 싶을 때
+
+  ```java
+  // Controller 로직만 확인하면 되는데, HTTP 요청/응답 흐름을 흉내내야 함.
+  // 진짜 서버 띄우기 귀찮으니까 MockMvc라는 가짜 객체로 흉내냄.
+  // Service/Repository는 가짜(MockBean)로 넣어서 빠르게 테스트.
+  @WebMvcTest(UserController.class)
+  class UserControllerTest {
+
+    @Autowired
+    private MockMvc mvc;
+
+    @MockBean
+    private UserService userService; // 가짜 주입
+
+    @Test
+    void getUser_test() throws Exception {
+        given(userService.getUser(1L)).willReturn(new User("narae"));
+
+        mvc.perform(get("/users/1"))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.name").value("narae"));
+    }
+  }
+  ```
+
+  #### 통합 테스트: @SpringBootTest
+  - 목표: Controller + Service + Repository + Security + Filter → 전체 플로우를 확인
+  - 예. SecurityConfig에서 `403`에러를 잘 핸들링하는지 확인하고 싶으면, `@SpringBootTest`를 붙여서 스프링이 만든 `SecurityFilterChain`을 그대로 띄워야 함.
+
+  ```java
+  // @SpringBootTest: 스프링 어플리케이션 띄우기.
+  // @AutoConfigureMockMvc: MockMvc (가짜 톰캣)을 주입 받기 위함.
+  @SpringBootTest(webEnvironment = WebEnvironment.MOCK)
+  @AutoConfigureMockMvc
+  class SecurityConfigTest {
+
+    @Autowired
+    // MockMvc는  “가짜 톰캣” 같은 역할: "서버 올리기 + Postman 호출" 하지 않아도 GET, POST 요청 흉내 가능
+    private MockMvc mvc;
+
+    @Test
+    void authentication_test() throws Exception {
+      // Postman에서 "GET http://localhost:8080/api/s/hello" 보내는 거랑 똑같음.
+      mvc.perform(get("/api/s/hello"))
+            .andExpect(status().isForbidden());
+    }
+  }
+  ```
+  </details>
+
+### 3. 테스트 메서드 작성 (`Given-When-Then` 패턴)
+- **Given**: 테스트에 필요한 준비 (데이터, mock, request)
+- **When**: 실제 행동 (API 호출, 메서드 실행)
+- **Then**: 결과 검증 (status, body, DB 상태 등)
+
+### 🌟 Mockito(?) Best Practice
 ```java
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK) 
 @AutoConfigureMockMvc 
 public class SecurityConfigTest {
   @Autowired
   private MockMvc mvc;
+
+  @Test
+  public void authentication_test() throws Exception {
+    // Given
+
+
+    // when 
+    ResultActions resultActions = mvc.perform(get("/api/s/hello")); 
+    String responseBody = resultActions.andReturn().getResponse().getContentAsString(); 
+    int httpStatusCode = resultActions.andReturn().getResponse().getStatus(); 
+    
+    System.out.println("테스트 : " + httpStatusCode); 
+    System.out.println("테스트 : " + responseBody); 
+    
+    // then
+  }
 }
 ```
-
-**2. 테스트 메서드 구조**
-
-**3. 테스트 흐름**
-
-
-### 4. Mock 설정
-
-### 5. Exception 처리 통일
-
-### 6. 테스트 작성 팁
