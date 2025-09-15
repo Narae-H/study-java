@@ -26,7 +26,7 @@ import shop.mtcoding.bank.domain.account.Account;
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "transaction_tb")
 @Entity
-public class transaction {
+public class Transaction {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -61,7 +61,7 @@ public class transaction {
   @Column(nullable = false)
   private LocalDateTime updatedAt;
 
-  public transaction(Long id, Account withdrawAccount, Account depositAccount, Long amount, Long withdrawAccountBalance,
+  public Transaction(Long id, Account withdrawAccount, Account depositAccount, Long amount, Long withdrawAccountBalance,
       Long depositAccountBalance, TrasactionEnum gubun, String senter, String receiver, String tel,
       LocalDateTime createdAt, LocalDateTime updatedAt) {
     this.id = id;

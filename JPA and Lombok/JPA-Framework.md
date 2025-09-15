@@ -158,3 +158,46 @@
   private int tempValue;
   ```
 
+---
+
+## 🌟 JPA + Spring Boot Best Practice (폴더 구조)
+
+- 1. 흔한 계층형 구조 (Layered Architecture)
+  ```java
+  src
+  └─ main
+      └─ java
+          └─ com.example.project
+              ├─ controller   // 요청/응답 처리
+              ├─ service      // 비즈니스 로직
+              ├─ repository   // DB 접근 (JPA Repository)
+              ├─ domain       // Entity
+              ├─ dto          // 요청/응답 DTO
+              └─ config       // 설정
+
+  ```
+  - 장점: 계층이 명확하고, 역할별 책임 구분이 잘 되어 있어요.
+  - 단점: 파일이 많아지면 패키지 간 이동이 많아질 수 있음.
+
+- 2. 두 번째 구조 (web, handler, util 포함) 
+  ```java
+  src
+  └─ main
+      └─ java
+          └─ com.example.project
+              ├─ web         // controller 역할
+              ├─ service     // 비지니스 로직
+              ├─ domain      // entity + repository 포함
+              ├─ dto         // Data Transaction Object
+              ├─ config
+              ├─ handler    // 예외처리, 이벤트 처리 등
+              └─ util       // 유틸리티 클래스
+
+  ```
+  - **web**: controller 대신 web이라는 이름으로 묶는 경우도 있음. 특히 REST API 위주 프로젝트에서 endpoint를 관리하기 위해 사용.
+  - **domain**: entity와 repository를 한 패키지 안에 넣음. 도메인 단위로 묶는다는 느낌. (예: domain.account.Account + domain.account.AccountRepository)
+  - **handler**: 예외 처리, 이벤트 처리, 인터셉터, 필터 같은 cross-cutting concern을 담당.
+  - **util**: 공통적으로 쓰이는 유틸리티 클래스.
+  - **장점**: 도메인 단위로 묶을 수 있고, controller와 service 외에 handler나 util 같이 cross-cutting concern를 명확히 구분 가능.
+  - **단점**: 초반에는 구조가 익숙하지 않아 찾기 어려울 수 있음.
+

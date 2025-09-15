@@ -1,3 +1,17 @@
+```
+src
+ └─ main
+     └─ java
+         └─ com.example.project
+             ├─ web        // controller 역할
+             ├─ service
+             ├─ domain      // entity + repository 포함
+             ├─ dto
+             ├─ config
+             ├─ handler    // 예외처리, 이벤트 처리 등
+             └─ util       // 유틸리티 클래스
+```
+
 # JPA
 ### JPA LocalDateTime 자동으로 생성하는 법
 총 3개의 @의 사용이 필요: `@EnableJpaAuditing`, `@EntityListeners(AuditingEntityListener.class)`, `@CreatedDate / @LastModifiedDate`
