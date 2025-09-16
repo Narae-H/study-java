@@ -229,16 +229,13 @@ src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
       - 테스트 대상 객체를 생성하면서, 그 안의 의존성을 `@Mock`으로 만든 것들로 자동 주입.
       - 예: `UserService`가 `UserRepository`를 의존하고 있다면, `@InjectMocks UserService`를 선언할 때 Mock이 자동 주입 됨.
 
-  > `@Autowired` vs `@Mock`
-  >   - **@Autowired**: 스프링 컨텍스트를 띄워서 실제 빈 주입 (**통합 테스트**)
-  >   - **@Mock**: 
-  >     - 스프링 컨텍스트 없이 가짜 객체 생성 (**단위 테스트**, **Stub 역할** 가능)
+  `@Autowired` vs `@Mock`
+    - **@Autowired**: 스프링 컨텍스트를 띄워서 실제 빈 주입 (**통합 테스트**)
+    - **@Mock**: 
+    - 스프링 컨텍스트 없이 가짜 객체 생성 (**단위 테스트**, **Stub 역할** 가능)
 
-<br/>
 
   ```java
-  // 순수 단위 테스트
-
   // 스프링 컨텍스트 안 띄우고, Repository 같은 의존성은 Mock으로 대체
   @ExtendWith(MockitoExtension.class)
   class UserServiceUnitTest {
