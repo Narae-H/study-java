@@ -55,6 +55,7 @@
   ```
 
 ### 2. Entity 만들기
+
   ```java
   import jakarta.persistence.*;
 
@@ -107,41 +108,122 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 ```
 
 ### 4. CRUD 실습
+
+  ```java
+  import org.springframework.boot.CommandLineRunner;
+  import org.springframework.stereotype.Component;
+  import org.springframework.transaction.annotation.Transactional;
+
+  @Component
+  public class TestDataLoader implements CommandLineRunner {
+
+    private final MemberRepository memberRepository;
+
+    public TestDataLoader(MemberRepository memberRepository) {
+      this.memberRepository = memberRepository;
+    }
+
+    @Override
+    @Transactional
+    public void run(String... args) throws Exception {
+      // 저장
+      Member member = new Member("John", 36);
+      memberRepository.save(member);
+
+      // 조회
+      Member found = memberRepository.findById(member.getId()).orElse(null);
+      System.out.println("Found: " + found.getName());
+
+      // 수정
+      found.setAge(20);
+      memberRepository.save(found);
+
+      // 삭제
+      memberRepository.delete(found);
+    }
+  }
+  ```
+
+<br/>
+
+## Query Creation
+- Sprinb Data JPA는 메서드 이름만으로 SQL쿼리를 자동 생성해 줌.
+- `findBy...`, `readBy...`, `getBy...` 같은 패턴
+- **Repository** 인터페이스에 메서드를 정의하면, 구현 없이 바로 실행 가능.
+- [Spring 공식 문서 참고](https://docs.spring.io/spring-data/jpa/reference/jpa/query-methods.html#jpa.query-methods.query-creation)
+
+### 1. 기본 규칙
+- 형식: `finBy` + `엔티티 필드명` + [`조건 키워드`](#조건-키워드) + [`[정렬 & 제한 키워드]`](#정렬--제한)
+- 예시:
+  ```java
+  interface MemberRepository extends JpaRepository<Member, Long> {
+    // 메서드 이름
+    List<Member> findByUsername(String username);
+    List<Member> findByAgeGreaterThan(int age);
+  }
+  ```
+  ```sql
+  -- SQL로 번역되면:
+  SELECT * FROM member WHERE username = ?;
+  SELECT * FROM member WHERE age > ?;
+  ```
+
+<details>
+<summary>조건키워드, 정렬 & 제한 키워드</summary>
+
+#### 조건 키워드
+- Spring Data JPA는 메서드 이름 안에서 키워드를 해석.
+
+**1. 비교 연산** 
+- findByAge`GreaterThan`(int age) → age > ?
+- findByAge`LessThan`(int age) → age < ?
+- findByAge`Between`(int start, int end) → age between ? and ?
+
+**2. 조건 조합**
+- findByUsername`And`Age(String username, int age) → where username = ? and age = ?
+- findByUsername`Or`Email(String username, String email) → where username = ? or email = ?
+
+**3. 문자열 관련**
+- findByUsername`Like`(String name) → username like ?
+- findByUsername`Containing`(String name) → username like %?%
+- findByUsername`StartingWith`(String prefix) → username like ?%
+- findByUsername`EndingWith`(String suffix) → username like %?
+
+**4. Boolean 필드**
+- findByActive`True`() → where active = true
+- findByActive`False`() → where active = false
+
+#### 정렬 & 제한
+
+**1. 정렬**
+  ```java
+  // 메서드 이름
+  List<Member> findByAgeGreaterThanOrderByUsernameDesc(int age);
+  ```
+  ```sql
+  -- SQL로 번역되면:
+  SELECT * from User where age >= ? order by username desc
+  ```
+
+**결과 개수 제한**
 ```java
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-@Component
-public class TestDataLoader implements CommandLineRunner {
-
-  private final MemberRepository memberRepository;
-
-  public TestDataLoader(MemberRepository memberRepository) {
-    this.memberRepository = memberRepository;
-  }
-
-  @Override
-  @Transactional
-  public void run(String... args) throws Exception {
-    // 저장
-    Member member = new Member("John", 36);
-    memberRepository.save(member);
-
-    // 조회
-    Member found = memberRepository.findById(member.getId()).orElse(null);
-    System.out.println("Found: " + found.getName());
-
-    // 수정
-    found.setAge(20);
-    memberRepository.save(found);
-
-    // 삭제
-    memberRepository.delete(found);
-  }
-}
-
+Member findFirstByOrderByAgeDesc();   // 가장 나이 많은 회원
+List<Member> findTop3ByOrderByAgeAsc(); // 나이 어린 3명
 ```
+</details>
+
+### 2. 반환 타입
+- List<Member> : 여러 개 결과
+- Optional<Member> : null-safe 단건
+- Member : 단건 (결과 없으면 null) => But, 실무에서는 null-safe때문에 대부분 Optional<Member> 씀.
+
+### 3. 네이밍 팁
+- `find`, `get`, `read` → 다 같은 의미. 관례적으로 `findBy` 많이 씀
+- 너무 길어지면 @Query 쓰는 게 나음
+  ```java
+  @Query("select m from Member m where m.username = :username and m.age = :age")
+  List<Member> findCustomQuery(@Param("username") String username, @Param("age") int age);
+  ```
 
 <br/>
 
@@ -269,6 +351,73 @@ public class TestDataLoader implements CommandLineRunner {
   ```
 
 <br/>
+
+## JPA 객체 상태 정리
+
+### 1. 상태개념
+
+| 상태                  | JPA에서 의미                      | 특징                        | DB 반영 여부           |
+| ------------------- | ----------------------------- | ------------------------- | ------------------ |
+| **Transient (비영속)** | 새로 만든 객체, JPA가 아직 모르는 상태      | DB와 연결 X, `save()` 호출 전   | X                  |
+| **Persistent (영속)** | JPA가 관리하는 객체                  | 트랜잭션 안에서 변경 감지 → 자동 DB 반영 (`save()` 다시 호출 안해도 됨) | O (트랜잭션 커밋 시)      |
+| **Detached (준영속)**  | 한때 영속 상태였지만, 지금은 JPA가 관리하지 않음 | DB와 연결 끊김, 변경해도 자동 반영 안 됨 | X (수동 `save()` 필요) |
+
+### 2. 상태 전환 흐름 
+
+```
+Transient (new User())
+   |
+   | save() or findById()
+   ↓ 
+Persistent (영속) 
+   |
+   |
+   ↓
+트랜잭션 종료 시 Detached (준영속)
+```
+
+### 3. 예제 코드
+```java
+// 영속 객체(Persistance Object)를 dirty checking 하여 자동으로 save()를 하려면, 
+// @Transactional 애노테이션 필수. 
+// 만약, @Transactional가 없다면 수동 save() 필요
+@Transactional 
+public void 회원가입(JoinReqDto joinReqDto) {
+  // 1. 비영속 객체 생성
+  User user = joinReqDto.toEntity(passwordEncoder); // transient
+
+  // 2. DB 저장 → 영속 객체
+  User userPS = userRepository.save(user); // persistent
+
+  // 3. 값 변경 → 자동으로 DB 반영
+  userPS.setFullName("John"); 
+
+} // 트랜잭션 종료 → userPS는 Detached 상태
+```
+
+<br/>
+
+## Spring Boot에서 DTO와 Entity 사용 흐름
+```
+[클라이언트]
+    ↓  JSON 요청
+[Request DTO]   ← (검증 @Valid, 필요한 필드만)
+    ↓
+[Service Layer]
+    ↓ DTO → Entity 변환
+[Entity]  ← (JPA 관리, DB 전용)
+    ↓
+[Repository]
+    ↓
+[Database]
+
+(응답)
+[Entity]
+    ↓ Entity → Response DTO 변환
+[Response DTO]  ← (필요한 데이터만 포함)
+    ↓  JSON 응답
+[클라이언트]
+```
 
 ## 🌟 JPA + Spring Boot Best Practice (폴더 구조)
 

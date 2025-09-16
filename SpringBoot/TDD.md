@@ -165,8 +165,9 @@ src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
 
   | 테스트 종류                           | 사용하는 애노테이션                                                   | 예시 | 
   | ----------------------------------- | ------------------------------------------------------------------ |  -------------------------------- |
-  | [**순수 단위 테스트 (Unit Test)**](#순수-단위-테스트-test)        | `@Test` (JUnit 기본)                     | 비밀번호 암호화 메서드 검증                  |
-  | [**JPA 단위 테스트 (Unit Test)**](#jpa-단위-테스트-datajpatest) | `@DataJpaTest` (JUnit 기본)               | DB에 data insert 확인                  |
+  | [**순수 단위 테스트**](#순수-단위-테스트-test)        | `@Test`                    | 비밀번호 암호화 메서드 검증                  |
+  | [**JPA 단위 테스트**](#jpa-단위-테스트-datajpatest) | `@DataJpaTest`               | DB에 data insert 확인                  |
+  | [**서비스 레이어 단위 테스트**](#서비스-레이어-단위-테스트-extendwith) | `@ExtendWith(MockitoExtension.class)` + `@InjectMocks` + `@Mock` | 비즈니스 로직만 검증 (Mock Repository 주입) |
   | [**웹 레이어 테스트 (Controller/Filter 등)**](#웹-레이어-단위-테스트-webmvctest--mockmvc) | `@WebMvcTest`<br>또는<br>`@SpringBootTest` + `@AutoConfigureMockMvc` |  인증 실패 시 403 Forbidden 응답 확인      |
   | [**통합 테스트 (Integration Test)**](#통합-테스트-springboottest)       | `@SpringBootTest`                  | 회원가입 → DB insert → 로그인까지 시나리오 실행 |
 
@@ -206,6 +207,59 @@ src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
       User saved = userRepository.save(user);
 
       assertThat(saved.getId()).isNotNull(); // DB에 들어갔는지 확인
+    }
+  }
+  ```
+
+  #### 서비스 레이어 단위 테스트: @ExtendWith
+  - 목표: 순수 비지니스 로직 검증. Service 레이어만 빠르게 확인
+    - `@ExtendWith`
+      - JUnit이 테스트를 실행할 때 확장 등록을 해서 `@Mock, @InjectMocks`를 사용가능하게 해줌. 
+    - `@Mock`
+      - 스프링 컨텍스트 안 띄움. **가짜 객체(Mock)를 만들어서 주입**할 때 사용.
+      - 테스트 대상 클래스가 다른 객체(의존성)을 필요로 하지만, 실제 객체를 띄우고 싶지 않을 때 사용.
+      - **Stub 정의**: 
+        - Stub = 테스트용 가짜 객체 중 하나로, **특정 입력에 대해 미리 정해진 값만 반환**하도록 만든 객체
+        - Mockito에서는 `given(...).willReturen(...)` 같은 방식으로 stub 설정 가능
+        ```java
+        given(userRepository.findByUsername("John"))
+          .willReturn(Optional.of(new User("John"))); // Stub 역할
+        ```
+    - `@InjectMocks`
+      - 테스트 대상 객체를 생성하면서, 그 안의 의존성을 `@Mock`으로 만든 것들로 자동 주입.
+      - 예: `UserService`가 `UserRepository`를 의존하고 있다면, `@InjectMocks UserService`를 선언할 때 Mock이 자동 주입 됨.
+
+  > `@Autowired` vs `@Mock`
+  >   - **@Autowired**: 스프링 컨텍스트를 띄워서 실제 빈 주입 (**통합 테스트**)
+  >   - **@Mock**: 
+  >     - 스프링 컨텍스트 없이 가짜 객체 생성 (**단위 테스트**, **Stub 역할** 가능)
+
+<br/>
+
+  ```java
+  // 순수 단위 테스트
+
+  // 스프링 컨텍스트 안 띄우고, Repository 같은 의존성은 Mock으로 대체
+  @ExtendWith(MockitoExtension.class)
+  class UserServiceUnitTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
+    private UserService userService; // Mock이 주입된 Service
+
+    @Test
+    void 회원가입_성공() {
+      // given
+      User user = new User("narae");
+      given(userRepository.save(any())).willReturn(user);
+
+      // when
+      User saved = userService.signup(user);
+
+      // then
+      assertThat(saved.getName()).isEqualTo("narae");
     }
   }
   ```
