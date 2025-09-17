@@ -216,15 +216,25 @@ src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
     - `@ExtendWith`
       - JUnit이 테스트를 실행할 때 확장 등록을 해서 `@Mock, @InjectMocks`를 사용가능하게 해줌. 
     - `@Mock`
-      - 스프링 컨텍스트 안 띄움. **가짜 객체(Mock)를 만들어서 주입**할 때 사용.
-      - 테스트 대상 클래스가 다른 객체(의존성)을 필요로 하지만, 실제 객체를 띄우고 싶지 않을 때 사용.
+      - 테스트 대상 클래스가 다른 객체(의존성)을 필요로 하지만, 실제 객체를 띄우고 싶지 않을 때 **가짜 객체(Mock)를 만들어서 주입**하여 사용.
+      - 모든 메서드는 기본값 (null, 0, false, 빈 컬렉션 등)만 반환
+      - 동작이 없으므로 **stub 설정**(`given(...).willReturn(...)`) 해줘야만 의미 있는 값 반환
       - **Stub 정의**: 
         - Stub = 테스트용 가짜 객체 중 하나로, **특정 입력에 대해 미리 정해진 값만 반환**하도록 만든 객체
-        - Mockito에서는 `given(...).willReturen(...)` 같은 방식으로 stub 설정 가능
+        - Mockito에서는 `given(...).willReturn(...)` 같은 방식으로 stub 설정 가능
         ```java
         given(userRepository.findByUsername("John"))
           .willReturn(Optional.of(new User("John"))); // Stub 역할
         ```
+    - `@Spy`
+      - 진짜 객체를 감싼 부분 가짜 객체(partial mock)
+      - 기본적으로 실제 메서드가 동작함
+      - 필요한 메서드만 stub으로 덮을 수 있음
+      - 내부 로직이 실행되기 때문에, DB나 외부 API에 붙는 객체에 쓰면 원치 않는 동작 발생 가능
+      ```java
+      @Spy
+      private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+      ```
     - `@InjectMocks`
       - 테스트 대상 객체를 생성하면서, 그 안의 의존성을 `@Mock`으로 만든 것들로 자동 주입.
       - 예: `UserService`가 `UserRepository`를 의존하고 있다면, `@InjectMocks UserService`를 선언할 때 Mock이 자동 주입 됨.

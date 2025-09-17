@@ -399,6 +399,7 @@ public void 회원가입(JoinReqDto joinReqDto) {
 
 ## Spring Boot에서 DTO와 Entity 사용 흐름
 ```
+(요청)
 [클라이언트]
     ↓  JSON 요청
 [Request DTO]   ← (검증 @Valid, 필요한 필드만)
