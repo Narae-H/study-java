@@ -27,7 +27,6 @@ public class UserController {
   private final UserService userSerivce;
 
   @PostMapping("/join")
-  //TODO: bildingresult
   public ResponseEntity<?> join(@RequestBody @Valid JoinReqDto joinReqDto, BindingResult bindingResult) {
     if(bindingResult.hasErrors()){
       Map<String, String> errorMap = new HashMap<>();
@@ -42,5 +41,4 @@ public class UserController {
     
     return new ResponseEntity<>(new ResponseDto<>(1, "회원가입 성공", joinResDto), HttpStatus.CREATED);
   }
-  
 }

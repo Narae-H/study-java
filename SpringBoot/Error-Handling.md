@@ -125,20 +125,14 @@ public class ResponseDto<T> {
 
 # 4. Validation 예외 처리
 
-| 단계 | 동작 (Flow)    | 처리 방법 (코드)|
+| 단계 | 동작 (Flow)    | 처리 방법 (Code)|
 | -- | --------------- | -------------- |
-| 1  | 클라이언트 요청 → Spring MVC가 파라미터 바인딩 수행 <br> | [**파라미터 바인딩**](#1-파라미터-바인딩) 정의  |
-| 2  | 바인딩된 DTO에 대해 Bean Validation 실행 <br> - DTO에 선언된 `@NotNull`, `@Size`, `@Email` 등 제약 조건 검사 <br> - 검사 트리거: `@Valid` 또는 `@Validated`                            | - [**DTO에서 제약 조건 애노테이션**](#dto-제약-조건-애노테이션)을 정의 <br/> - [**Controller 파라미터에 검증을 위한 애노테이션**](#controller-파라미터에-검증을-위한-애노테이션)을 붙여서 검증 실행 |
-| 3A | **검증 실패 & BindingResult 있음** <br> → 예외 발생하지 않고 `BindingResult`에 에러 정보 저장  | [**검증 결과 객체**](#controller-검증-결과-객체)로 결과를 받음. |
-| 3B | **검증 실패 & BindingResult 없음** <br> → Spring이 예외 발생시킴 <br> - `MethodArgumentNotValidException` (주로 `@RequestBody`) <br> - `BindException` (`@ModelAttribute`) | 예외 발생 → 전역 예외 처리 (`@ControllerAdvice`)로 위임 |
-| 4  | 검증 성공     | 컨트롤러 로직 정상 실행 → 정상 응답 반환                   |
+| 1  | 클라이언트 요청 → Spring MVC가 파라미터 **바인딩** 수행 <br> - `@RequestBody` <br/> - `@ModelAttribute` | [**파라미터 바인딩**](#1-파라미터-바인딩) 정의  |
+| 2  | **Bean Validation** 실행 <br> - DTO: `@NotNull`, `@Size`, `@Email` 등 제약 조건 검사 <br> - Controller: `@Valid` 또는 `@Validated` 검증 실행                           | - [**DTO에서 제약 조건 애노테이션**](#2-1-dto-제약-조건-애노테이션)을 정의 <br/> - [**Controller 파라미터에 검증 실행 애노테이션**](#2-2-controller-검증-실행-애노테이션)을 붙여서 검증 실행 |
+| 3A | **검증 실패 & BindingResult** ⭕ <br> → 예외 발생하지 않고 `BindingResult`에 에러 정보 저장  | [**검증 결과 객체**(BindingResult)](#3-1-controller-bindingresult검증-결과-객체)로 에러 결과를 받음 |
+| 3B | **검증 실패 & BindingResult 없음** <br> → Spring이 예외 발생시킴 |[**스프링 예외 발생**](#3-2-controller-spring이-자동으로-예외-던짐) → 전역 예외 처리 |
+| 4  | **검증 성공**     | 컨트롤러 로직 정상 실행 → 정상 응답 반환                   |
 
-
-
-
-1. Spring Boot에서는 [**DTO에서 제약 조건 애노테이션**](#dto-제약-조건-애노테이션)을 정의하고, 
-2. [**Controller 파라미터에 검증을 위한 애노테이션**](#controller-파라미터에-검증을-위한-애노테이션)을 붙여서 검증을 실행하며, 
-3. 필요하다면 [**검증 결과 객체**](#controller-검증-결과-객체)로 결과를 받음.
 
 <details>
 <summary>예외 처리 애노테이션 및 검증 결과 객체 자세히</summary>
@@ -146,7 +140,7 @@ public class ResponseDto<T> {
 ### 1. 파라미터 바인딩
 - “어떤 방식으로 클라이언트가 데이터를 보내고, 스프링이 그 데이터를 DTO로 바인딩하느냐” 차이
 
-| 구분             | @RequestBody                           | @ModelAttribute                            |
+| 구분             | `@RequestBody`                           | `@ModelAttribute`                            |
 | -------------- | -------------------------------------- | ------------------------------------------ |
 | **데이터 전달 방식**  | HTTP 요청 **바디** (JSON, XML 등) <br/>  예. *Body: { "name": "John", "age": 30 }*        | 요청 파라미터 (**쿼리스트링, form-data**) <br/> 예. *Body: name=John&age=30*            |
 | **바인딩 방식**     | 요청 바디 전체 → DTO 객체로 통째로 변환              | 요청 파라미터 하나하나 → DTO 필드에 주입                  |
@@ -157,7 +151,9 @@ public class ResponseDto<T> {
 
 ---
 
-### 2-1. `DTO`: 제약 조건 애노테이션
+### 2. Bean Validation 실행
+
+#### 2-1. `DTO`: 제약 조건 애노테이션
 
 | 애노테이션                                                             | 동작 / 의미                                           | 대표 옵션들 / 주의점                                                    |
 | ----------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------- |
@@ -175,22 +171,54 @@ public class ResponseDto<T> {
 
 - <sup>[Overview of Bean Validation](https://docs.spring.io/spring-framework/reference/core/validation/beanvalidation.html?utm_source=chatgpt.com#validation-beanvalidation-overview)</sup>
 
-### 2-2. `Controller`: 파라미터에 검증을 위한 애노테이션
+---
+
+#### 2-2. `Controller`: 검증 실행 애노테이션
 
 | 구분                            | `@Valid`                                                                                                                                            | `@Validated`                                                                             |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | 출처                            | Java Bean Validation 표준(JSR-303 / JSR-380) 에서 제공됨.                                                                   | Spring 프레임워크에서 제공되는 애노테이션. 표준 스펙을 포함  |
 | 그룹별 검증 (validation groups) 지원 | **안됨**  | 가능함. groups 속성 지정해서 특정 그룹의 제약들만 검사할 수 있음.                        |
 | 주로 쓰이는 위치                     | DTO 파라미터 앞 (`@RequestBody`, `@ModelAttribute`) 등, 객체의 속성에 붙은 제약(annotation)이 유효한지 | 클래스 단에 붙여서 메소드 유효성 검사(method-level validation) 가능하거나, 그룹 기능 쓸 때.  |
-| 예외 타입 차이                      | `@Valid` 검증 실패 시, `MethodArgumentNotValidException` (주로 `@RequestBody`) 또는 `BindException` / `ConstraintViolationException` 등이 발생 가능함.| 그룹 지정 혹은 메소드 유효성 검사 중 `ConstraintViolationException` 등이 발생할 수 있음. |
+| 예외 타입 차이                      | `@Valid` 검증 실패 시, `MethodArgumentNotValidException`  또는 `BindException`이 발생 가능함.| 그룹 지정 혹은 메소드 유효성 검사 중 `ConstraintViolationException` 등이 발생할 수 있음. |
 
 ---
-### 3. `Controller`: 검증 결과 객체
+
+### 3. `Controller`: 검증 실패 예외 타입
 - **검증 실패**가 있으면:
-  - if, **BindingResult 파라미터가 같이 선언되어 있다면** → 컨트롤러 내부에서 직접 BindingResult를 활용하여 에러 응답 제어 가능 + 메소드가 계속 실행됨
+  - if, **BindingResult 파라미터가 같이 선언되어 있다면** → 컨트롤러 내부에서 직접 `BindingResult`를 활용하여 에러 응답 제어 가능 + 메소드가 계속 실행됨
   - else, **BindingResult가 없으면** → Spring이 자동으로 예외 던짐. (MethodArgumentNotValidException 또는 BindException 등) → 전역 예외 처리하거나 ControllerAdvice로 잡음 
+
+#### 3-1. `Controller`: BindingResult(검증 결과 객체)
+
+- 예시 코드: 
+  ```java
+  @AllArgsConstructor
+  @RequestMapping("/api")
+  @RestController
+  public class UserController {
+    private final UserService userSerivce;
+
+    @PostMapping("/join")
+    public ResponseEntity<?> join(@RequestBody @Valid JoinReqDto joinReqDto, BindingResult bindingResult) {
+      if(bindingResult.hasErrors()){
+        Map<String, String> errorMap = new HashMap<>();
+
+        for(FieldError error : bindingResult.getFieldErrors()) {
+          errorMap.put(error.getField(), error.getDefaultMessage());
+        }
+        return new ResponseEntity<>(new ResponseDto<>(-1, "유효성 검사 실패", errorMap), HttpStatus.BAD_REQUEST);
+      }
+      
+      JoinResDto joinResDto = userSerivce.회원가입(joinReqDto);
+      
+      return new ResponseEntity<>(new ResponseDto<>(1, "회원가입 성공", joinResDto), HttpStatus.CREATED);
+    }
+  }
+  ```
   
-- BindingResult의 위치: BindingResult는 항상 @Valid 또는 @Validated가 붙은 파라미터 바로 뒤에 선언해야 함. 순서가 다르면 스프링이 인식하지 못하고 예외가 터질 수 있음.
+- 주의할 점:
+  - `BindingResult`는 항상 `@Valid` 또는 `@Validated`가 붙은 파라미터 바로 뒤에 선언해야 함. 순서가 다르면 스프링이 인식하지 못하고 예외가 터질 수 있음.
   ```java
   // 올바른 예시
   public ResponseEntity<?> create(@Valid @RequestBody UserDto dto, BindingResult bindingResult) { ... }
@@ -199,28 +227,61 @@ public class ResponseDto<T> {
   public ResponseEntity<?> create(BindingResult bindingResult, @Valid @RequestBody UserDto dto) { ... }
   ```
 
-- 검증 실패 시 `BindingResult` 활용
+- 검증 실패 시 사용할 수 있는 `BindingResult` 메소드:
   - `bindingResult.hasErrors()`: 하나라도 검증 실패가 있는지 여부
   - `bindingResult.getFieldErrors()`: 특정 필드 단위 에러 정보 반환
   - `bindingResult.getAllErrors()`: 모든 에러 객체 리스트 반환
   - `FieldError.getField()`, `getRejectedValue()`, `getDefaultMessage()`:어느 필드가 왜 실패했는지 정보 얻기. 코드에서 수동으로 에러 추가 가능
+
+#### 3-2. `Controller`: Spring이 자동으로 예외 던짐
+
+- 발생하는 예외 유형:
+  - `@RequestBody` + DTO 검증 실패:
+    - **예외**: `MethodArgumentNotValidException`
+    - **이유**: JSON 바디 → DTO 바인딩 단계에서 검증 실패 발생
+  - `@ModelAttribute` + DTO 검증 실패: 
+    - **예외**: `BindException`
+    - **이유**: 요청 파라미터 바인딩 과정에서 검증 실패 발생
+
+- 예외 흐름:
+  1. `DispatcherServlet`이 예외를 감지
+  2. 등록된 `@ControllerAdvice` + `@ExceptionHandler` 가 있으면 여기로 위임
+  3. 없다면, 스프링 기본 예외 처리(`DefaultHandlerExceptionResolver`, `ResponseEntityExceptionHandler`) 동작
+      - REST API라면 기본적으로 400 Bad Request와 에러 메시지가 내려감
+
+- 코드 예시:
+  ```java
+  @RestControllerAdvice
+  public class GlobalExceptionHandler {
+
+    // @RequestBody 검증 실패 → MethodArgumentNotValidException
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationException(MethodArgumentNotValidException ex) {
+      String errorMessage = ex.getBindingResult()
+                              .getFieldErrors()
+                              .stream()
+                              .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                              .findFirst()
+                              .orElse("Invalid input");
+      return ResponseEntity.badRequest().body(errorMessage);
+    }
+
+    // @ModelAttribute 검증 실패 → BindException
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<String> handleBindException(BindException ex) {
+      String errorMessage = ex.getBindingResult()
+                              .getFieldErrors()
+                              .stream()
+                              .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                              .findFirst()
+                              .orElse("Invalid input");
+      return ResponseEntity.badRequest().body(errorMessage);
+    }
+  }
+  ```
 </details>
 
-
-### 동작 흐름
-1. 클라이언트 → **요청** → Spring MVC가 파라미터 바인딩(binding) 수행
-  - 예: `@RequestBody`이면 HTTP 메시지 바디를 객체로 변환
-  - `@ModelAttribute`이면 요청 파라미터들을 해당 객체 필드에 주입
-
-2. 바인딩한 객체에 대해 Bean Validation 구현체가 애노테이션(@NotNull, @Size, …)을 보고 **검사 실행**
-  - `@Valid` 혹은 `@Validated`가 메소드 파라미터 앞에 있어야 함
-
-3. **검증 실패**가 있으면
-  - 만약 **BindingResult 파라미터가 같이 선언되어 있다면** → BindingResult 안에 에러 정보 저장 + 메소드가 계속 실행됨
-  - **BindingResult가 없으면** → Spring이 자동으로 예외 던짐 (MethodArgumentNotValidException 또는 BindException 등) → 전역 예외 처리하거나 ControllerAdvice로 잡음
-
-
-### 사용 예시
+### 🌟 Best Practice: 사용 예시
 - `DTO`
   ```java
   import jakarta.validation.constraints.NotBlank;
@@ -237,23 +298,21 @@ public class ResponseDto<T> {
   ```
 
 - `Controller`
-  - `@Valid`: DTO 파라미터 앞 (@RequestBody, @ModelAttribute) 등, 객체의 속성에 붙은 제약(annotation)이 유효한지 검사
-  - `@BindingResult`: **Spring MVC 컨트롤러 메소드 파라미터** 중 하나로, `@Valid` 혹은 `@ModelAttribute` 와 함께 쓰이는 경우 검증 결과를 담는 객체
-```java
-@PostMapping("/members")
-public ResponseDto<Member> createMember(@Valid @RequestBody MemberDto dto, BindingResult bindingResult) {
-  // 유효성 검사
-  if(bindingResult.hasErrors()){
-    Map<String, String> errorMap = new HashMap<>();
+  ```java
+  @PostMapping("/members")
+  public ResponseDto<Member> createMember(@Valid @RequestBody MemberDto dto, BindingResult bindingResult) {
+    // 유효성 검사
+    if(bindingResult.hasErrors()){
+      Map<String, String> errorMap = new HashMap<>();
 
-    for(FieldError error : bindingResult.getFieldErrors()) {
-      errorMap.put(error.getField(), error.getDefaultMessage());
+      for(FieldError error : bindingResult.getFieldErrors()) {
+        errorMap.put(error.getField(), error.getDefaultMessage());
+      }
+      return new ResponseEntity<>(new ResponseDto<>(-1, "유효성 검사 실패", errorMap), HttpStatus.BAD_REQUEST);
     }
-    return new ResponseEntity<>(new ResponseDto<>(-1, "유효성 검사 실패", errorMap), HttpStatus.BAD_REQUEST);
-  }
 
-  // save()
-  Member member = memberService.save(dto);
-  return new ResponseDto<>(1, "success", member);
-}
-```
+    // save()
+    Member member = memberService.save(dto);
+    return new ResponseDto<>(1, "success", member);
+  }
+  ```
