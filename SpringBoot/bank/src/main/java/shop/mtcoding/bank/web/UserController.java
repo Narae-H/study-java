@@ -1,0 +1,46 @@
+package shop.mtcoding.bank.web;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
+import shop.mtcoding.bank.dto.ResponseDto;
+import shop.mtcoding.bank.dto.user.UserResDto.JoinResDto;
+import shop.mtcoding.bank.dto.user.userReqDto.JoinReqDto;
+import shop.mtcoding.bank.service.UserService;
+
+
+@AllArgsConstructor
+@RequestMapping("/api")
+@RestController
+public class UserController {
+  private final UserService userSerivce;
+
+  @PostMapping("/join")
+  //TODO: bildingresult
+  public ResponseEntity<?> join(@RequestBody @Valid JoinReqDto joinReqDto, BindingResult bindingResult) {
+    if(bindingResult.hasErrors()){
+      Map<String, String> errorMap = new HashMap<>();
+
+      for(FieldError error : bindingResult.getFieldErrors()) {
+        errorMap.put(error.getField(), error.getDefaultMessage());
+      }
+      return new ResponseEntity<>(new ResponseDto<>(-1, "유효성 검사 실패", errorMap), HttpStatus.BAD_REQUEST);
+    }
+    
+    JoinResDto joinResDto = userSerivce.회원가입(joinReqDto);
+    
+    return new ResponseEntity<>(new ResponseDto<>(1, "회원가입 성공", joinResDto), HttpStatus.CREATED);
+  }
+  
+}

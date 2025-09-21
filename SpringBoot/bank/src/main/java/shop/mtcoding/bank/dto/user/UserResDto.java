@@ -10,12 +10,12 @@ public class UserResDto {
   @ToString
   @Setter
   @Getter
-  public static class JoinRespDto {
+  public static class JoinResDto {
     private Long id;
     private String username;
     private String fullname;
 
-    public JoinRespDto(User user) {
+    public JoinResDto(User user) {
       this.id = user.getId();
       this.username = user.getUsername();
       this.fullname = user.getFullname();

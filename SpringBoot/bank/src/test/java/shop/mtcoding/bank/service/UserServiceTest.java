@@ -17,7 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import shop.mtcoding.bank.config.dummy.DummyObject;
 import shop.mtcoding.bank.domain.user.User;
 import shop.mtcoding.bank.domain.user.UserRepository;
-import shop.mtcoding.bank.dto.user.UserResDto.JoinRespDto;
+import shop.mtcoding.bank.dto.user.UserResDto.JoinResDto;
 import shop.mtcoding.bank.dto.user.userReqDto.JoinReqDto;
 
 @ExtendWith(MockitoExtension.class) //@Mock, @InjectMocks 사용하기 위해 필요
@@ -50,12 +50,12 @@ public class UserServiceTest extends DummyObject {
     given(userRepository.save(any())).willReturn(ssar);
   
     // when
-    JoinRespDto joinRespDto = userService.회원가입(joinReqDto);
-    System.out.println("테스트 : " + joinRespDto);
+    JoinResDto joinResDto = userService.회원가입(joinReqDto);
+    System.out.println("테스트 : " + joinResDto);
 
     // then
-    assertThat(joinRespDto.getId()).isEqualTo(1L);
-    assertThat(joinRespDto.getUsername()).isEqualTo("ssar");
+    assertThat(joinResDto.getId()).isEqualTo(1L);
+    assertThat(joinResDto.getUsername()).isEqualTo("ssar");
   }
   
 }

@@ -9,7 +9,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import shop.mtcoding.bank.domain.user.User;
 import shop.mtcoding.bank.domain.user.UserRepository;
-import shop.mtcoding.bank.dto.user.UserResDto.JoinRespDto;
+import shop.mtcoding.bank.dto.user.UserResDto.JoinResDto;
 import shop.mtcoding.bank.dto.user.userReqDto.JoinReqDto;
 import shop.mtcoding.bank.handler.ex.CustomApiException;
 
@@ -22,7 +22,7 @@ public class UserService {
 
   // 서비스는 DTO로 요청을 받고, DTO로 응답한다.
   @Transactional // 트랜잭션이 메서드 시작할 때 시작되고 종료 될 때 함께 종료
-  public JoinRespDto 회원가입(JoinReqDto joinReqDto) {
+  public JoinResDto 회원가입(JoinReqDto joinReqDto) {
     // 1. 동일 유저네임 존재 검사
     Optional<User> userOP = userRepository.findByUsername(joinReqDto.getUsername());
     // if(userOP.isPresent()) { // 유저네임 중복되었다는 뜻
@@ -36,6 +36,6 @@ public class UserService {
     User userPS = userRepository.save(joinReqDto.toEntity(passwordEncoder));
 
     // 3. dto 응답
-    return new JoinRespDto(userPS);
+    return new JoinResDto(userPS);
   }
 }
