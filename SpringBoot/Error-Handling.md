@@ -1,26 +1,94 @@
+# 🌱 스프링부트 에러 핸들링 개요
+- **Spring Boot 3.5.5** 사용
+- **Jakarta Validation** (`@Valid`, `@Validated`) 으로 요청 DTO 검증
+- **AOP**를 통해 공통 로직(로깅, 검증, 예외 변환 등) 적용
+- `@ControllerAdvice` + `@ExceptionHandler`로 전역 예외 처리
+
+<br/>
+
+---
+
+<br/>
+
 # 1. 기본 동작
 - Spring Boot는 기본적으로 `BasicErrorController` 를 통해 에러를 처리
-- 예외가 발생하면 → ErrorMvcAutoConfiguration 이 자동 설정 → /error 엔드포인트로 매핑 → JSON 또는 HTML 에러 응답 반환.
+- 예외 발생 → 스프링 전역 예외 처리 → JSON 또는 HTML 에러 응답 반환
 
-# 2. 패키지 구조
+<br/>
 
-```
+# 2. 패키지 구조 및 흐름
+
+### 2-1. 📦 패키지 구조
+```powershell
 src/main/java/com/example/demo/
- ├── controller/
- │    └── MemberController.java
- ├── handler/
- │    ├── exception
- │    |    └── CustomApiException.java
- │    └── GlobalExceptionHandler.java
- └── DemoApplication.java
+├─ 📂 domain
+├─ 📂 dto    # 데이터 전달 객체
+│   └─ 📂 user
+│       ├─ 📄 JoinReqDto.java # 요청 DTO
+│       └─ 📄 JoinResDto.java # 응답 DTO
+├─ 📂 handler 
+│   ├─ 📂 aop # AOP 관련 (메서드 호출 가로채기)
+│   ├─ 📂 ex  # 커스텀 예외
+│   |  └─ 📄 CustomValidationException.java
+│   └─ 📄 GlobalExceptionHandler.java # 전역 예외 처리
+├─ 📂 service
+│   └─ 📄 UserService.java
+├─ 📂 controller
+│   └─ 📄 UserController.java
+└─ 📄 DemoApplication.java
 ```
+
+### 2-2. ⚙️ 요청-응답 흐름
+
+```less
+[클라이언트]
+    │
+    │ 1. JSON 요청 (ReqDto)
+    │
+    ▼ 
+[Controller]: 2. 메서드 실행(@Valid DTO 검증)
+    │
+    ├── 3. AOP (에러 있으면 throw new CustomValidationException() 발생)
+    ├── 4. 스프링의 Exception Handling 매커니즘 발동하여 throw된 예외 가로채기
+    │ 
+    ▼
+[GlobalExceptionHandler]: 5. 전역 예외 처리
+    │
+    │ 6. JSON 응답 (ResDto)
+    │ 
+    ▼
+[클라이언트]
+```
+
+**1. 클라이언트 요청**
+- 클라이언트가 `JSON 요청`을 보냄 (예: 회원가입 요청 `JoinReqDto`).
+
+**2. 컨트롤러 진입**
+- `UserController`의 메서드가 호출되고, `@Valid`로 DTO 검증이 실행됨.
+- `BindingResult` 객체가 함께 넘어와서 검증 결과를 담음.
+
+**3. AOP 동작 (검증 가로채기)**
+- AOP `@Around` 어드바이스가 동작해 `BindingResult`를 확인.
+- 만약 에러가 있으면 `throw new CustomValidationException(...)` 실행.
+
+**4. 예외 발생 → 스프링 예외 처리 메커니즘 작동**
+- 예외가 던져지면 Spring MVC의 **DispatcherServlet**이 이를 감지.
+- 등록된 `@RestControllerAdvice`의 `@ExceptionHandler` 메서드가 매칭됨.
+
+**5. 전역 예외 처리 (GlobalExceptionHandler)**
+- 해당 예외를 잡아서 `ResponseDto` 형태로 응답 객체 생성.
+- `ResponseEntity`에 담아 HTTP 상태 코드와 함께 반환.
+
+**6. 클라이언트 응답**
+- 클라이언트는 JSON 형태의 응답(ResponseDto)을 수신.
+
+<br/>
 
 # 3. 에러 처리 방법
 - 간단한 경우: [`@ResponseStatus`](#응답코드-responsestatus)
 - 특정 컨트롤러만: [`@ExceptionHandler`](#컨트롤러-단에서-처리-exceptionhandler)
 - 전역 공통 처리: [`@RestControllerAdvice`](#전역-에러-처리-restcontrolleradvice)
 - 표준화된 응답: [`@ExceptionHandler`](#컨트롤러-단에서-처리-exceptionhandler) + [`@RestControllerAdvice`](#전역-에러-처리-restcontrolleradvice) + [`공통 ResponseDTO`](#공통-response-dto)
-- Spring 기본 확장: [`ResponseEntityExceptionHandler`](#spring-기본-확장-responseentityexceptionhandler)
 
 <details>
 <summary> 예외 처리 방법 자세히 </summary>
@@ -76,31 +144,6 @@ src/main/java/com/example/demo/
     }
   }
   ```
-
-#### Spring 기본 확장: ResponseEntityExceptionHandler 
-- Spring이 미리 제공하는 예외 처리기를 확장
-- 예를 들어, `@Valid` 검증 실패(MethodArgumentNotValidException) 같은 걸 커스터마이징할 때 씀
-
-```java
-@RestControllerAdvice
-public class CustomRestExceptionHandler extends ResponseEntityExceptionHandler {
-
-  @Override
-  protected ResponseEntity<Object> handleMethodArgumentNotValid(
-    MethodArgumentNotValidException ex, HttpHeaders headers,
-    HttpStatus status, WebRequest request) {
-
-    Map<String, String> errors = new HashMap<>();
-    ex.getBindingResult().getFieldErrors().forEach(
-      err -> errors.put(err.getField(), err.getDefaultMessage())
-    );
-
-    ResponseDto<Map<String, String>> response = new ResponseDto<>(-1, "Validation failed", errors);
-
-    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-  }
-}
-```
 
 #### 공통 Response DTO
 - 모든 API 응답을 같은 포맷으로 맞추기 위한 DTO
@@ -190,6 +233,7 @@ public class ResponseDto<T> {
   - else, **BindingResult가 없으면** → Spring이 자동으로 예외 던짐. (MethodArgumentNotValidException 또는 BindException 등) → 전역 예외 처리하거나 ControllerAdvice로 잡음 
 
 #### 3-1. `Controller`: BindingResult(검증 결과 객체)
+BindingResult는 직접 확인하는 대신 AOP 활용도 가능([AOP 문서 참고](./aop.md#4-예외-처리)) 
 
 - 예시 코드: 
   ```java
