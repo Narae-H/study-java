@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.ResultActions;
 public class SecurityConfigTest {
   
   // 가짜 환경에 등록된 MockMvc를 DI함.
-  @Autowired
+  @Autowired 
   private MockMvc mvc;  
 
   // 서버는 일관성있게 에러가 리턴되어야 한다.

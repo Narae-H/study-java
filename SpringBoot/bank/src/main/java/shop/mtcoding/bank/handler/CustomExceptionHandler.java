@@ -3,7 +3,6 @@ package shop.mtcoding.bank.handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,22 +22,23 @@ public class CustomExceptionHandler {
     return new ResponseEntity<>(new ResponseDto<>(-1, e.getMessage(), null), HttpStatus.BAD_REQUEST);
   }
 
-  @ExceptionHandler(CustomValidationException.class)
-  public ResponseEntity<?> validationApiException(CustomValidationException e) {
-    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-    pd.setTitle("API 오류");
-    pd.setDetail(e.getMessage());
-    return pd;
-
-    log.error(e.getMessage());
-
-    return new ResponseEntity<>(new ResponseDto<>(-1, e.getMessage(), e.getErrorMap()), HttpStatus.BAD_REQUEST);
-  }
-
+  // TODO: 나중에 스프링부트 3.x 방식으로 변경하기
   // @ExceptionHandler(CustomValidationException.class)
   // public ResponseEntity<?> validationApiException(CustomValidationException e) {
+  //   ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+  //   pd.setTitle("API 오류");
+  //   pd.setDetail(e.getMessage());
+  //   return pd;
+
   //   log.error(e.getMessage());
 
   //   return new ResponseEntity<>(new ResponseDto<>(-1, e.getMessage(), e.getErrorMap()), HttpStatus.BAD_REQUEST);
   // }
+
+  @ExceptionHandler(CustomValidationException.class)
+  public ResponseEntity<?> validationApiException(CustomValidationException e) {
+    log.error(e.getMessage());
+
+    return new ResponseEntity<>(new ResponseDto<>(-1, e.getMessage(), e.getErrorMap()), HttpStatus.BAD_REQUEST);
+  }
 }
