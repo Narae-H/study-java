@@ -168,7 +168,7 @@ src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
   | [**순수 단위 테스트**](#순수-단위-테스트-test)        | `@Test`                    | 비밀번호 암호화 메서드 검증                  |
   | [**JPA 단위 테스트**](#jpa-단위-테스트-datajpatest) | `@DataJpaTest`               | DB에 data insert 확인                  |
   | [**서비스 레이어 단위 테스트**](#서비스-레이어-단위-테스트-extendwith) | `@ExtendWith(MockitoExtension.class)` + `@InjectMocks` + `@Mock` | 비즈니스 로직만 검증 (Mock Repository 주입) |
-  | [**웹 레이어 테스트 (Controller/Filter 등)**](#웹-레이어-단위-테스트-webmvctest--mockmvc) | `@WebMvcTest`<br>또는<br>`@SpringBootTest` + `@AutoConfigureMockMvc` |  인증 실패 시 403 Forbidden 응답 확인      |
+  | [**웹 레이어 테스트 (Controller/Filter 등)**](#웹-레이어-테스트-webmvctest-또는-springboottest--autoconfiguremockmvc) | 단위테스트: `@WebMvcTest`<br> 통합 테스트:`@SpringBootTest` + `@AutoConfigureMockMvc` |  인증 실패 시 403 Forbidden 응답 확인      |
   | [**통합 테스트 (Integration Test)**](#통합-테스트-springboottest)       | `@SpringBootTest`                  | 회원가입 → DB insert → 로그인까지 시나리오 실행 |
 
   <details>
@@ -271,29 +271,80 @@ src/test/java/shop/mtcoding/bank/config/SecurityConfigTest.java
   }
   ```
 
-  #### 웹 레이어 단위 테스트: @WebMvcTest + MockMvc
-  - 목표: Controller → Service 호출 흐름을 검증하고 싶을 때
+  #### 웹 레이어 테스트: @WebMvcTest 또는 @SpringBootTest + @AutoConfigureMockMvc
+
+  | 구분        | [@WebMvcTest](#1-웹-레이어-단위-테스트-webmvctest) | [@SpringBootTest + @AutoConfigureMockMvc](#2-웹-레이어-통합-테스트-springboottest--autoconfiguremockmvc) |
+  | --------- | ------------------ | --------------------------------------- |
+  | 테스트 범위        | **단위** 테스트 <br/> 컨트롤러(Web layer)만       | **통합** 테스트 <br/> 전체 어플리케이션 (Web + Service + Repository)|
+  | 서비스/레포지토리 | @MockBean 필요       | @Autowired 실제 빈 사용 가능                              |
+  | 속도        | 빠름                 | 느림                                      |
+  | 테스트 목적  | 단위 테스트, 빠른 피드백  | 통합/기능 테스트, 실제 환경 검증  |
+  | 예시        | 컨트롤러 요청 → Mock 서비스 | 컨트롤러 → 실제 서비스 → DB   |
+
+  ##### 1. 웹 레이어 단위 테스트: @WebMvcTest
+  - 용도:
+    - 서비스나 레포지토리 등 다른 빈은 로드하지 않음
+    - 보통 컨트롤러에서 HTTP 요청/응답 로직, validation, 필터, 인터셋터 같은 **웹 계층 기능만 테스트**할 때 적합
+      - **컨트롤러의 HTTP 요청/응답 구조만 검증**: `GET /users/{id}`가 200 OK를 반환하고 JSON 구조가 맞는지 확인
+      - **컨트롤러에서 validation이나 DTO 변환만 테스트**: `@Valid` 적용된 request DTO가 잘 검증되는지 확인
+  - 특징:
+    - `@Controller`, `@RestController`, `@ControllerAdvice` 등만 로딩
+    - `@Service`, `@Repository`는 로드되지 않음 -> 필요하면 `@MockBean` 으로 주입
+    - **웹 요청** → **컨트롤러** → **서비스(mock)** → **응답 검증**
+    - DB나 서비스 로직 없이 컨트롤러 동작만 검증 가능
 
   ```java
   // Controller 로직만 확인하면 되는데, HTTP 요청/응답 흐름을 흉내내야 함.
-  // 진짜 서버 띄우기 귀찮으니까 MockMvc라는 가짜 객체로 흉내냄.
-  // Service/Repository는 가짜(MockBean)로 넣어서 빠르게 테스트.
   @WebMvcTest(UserController.class)
   class UserControllerTest {
-
     @Autowired
-    private MockMvc mvc;
+    private MockMvc mockMvc; // 진짜 서버 띄우기 귀찮으니까 MockMvc라는 가짜 객체로 흉내냄
 
     @MockBean
-    private UserService userService; // 가짜 주입
+    private UserService userService; // Service/Repository는 가짜(MockBean)로 넣어서 빠르게 테스트
 
     @Test
     void getUser_test() throws Exception {
-        given(userService.getUser(1L)).willReturn(new User("narae"));
+        given(userService.getUser(1L)).willReturn(new User("John"));
 
-        mvc.perform(get("/users/1"))
+        mockMvc.perform(get("/users/1"))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$.name").value("narae"));
+          .andExpect(jsonPath("$.name").value("John"));
+    }
+  }
+  ```
+
+  ##### 2. 웹 레이어 통합 테스트: @SpringBootTest + @AutoConfigureMockMvc
+  - 용도:
+    - 실제 서비스, 레포지토리 등 실제 빈까지 다 로드
+    - MockMvc를 함께 쓰면 컨트롤러 계층 테스트도 가능하지만, 실제 서비스/DB 연동까지 확인 가능
+      - **컨트롤러 + 서비스 + DB 연동까지 검증**: `GET /users/{id}`가 DB에서 실제 데이터 조회 후 반환되는지 확인
+      - **실제 Bean 의존성 테스트 필요**: UserService가 UserRepository를 실제로 호출하는지 검증
+      - **통합적인 기능 테스트**: 회원 가입 → DB 저장 → 조회 → 컨트롤러 반환까지 한 번에 테스트
+  - 특징:
+    - 컨트롤러 + 서비스 + DB 연동 테스트 가능
+    - 실제 의존성을 쓰고 싶을 때
+
+  ```java
+  @SpringBootTest
+  @AutoConfigureMockMvc
+  class UserControllerIntegrationTest {
+    @Autowired
+    private MockMvc mockMvc; // 진짜 서버 띄우기 귀찮으니까 MockMvc라는 가짜 객체로 흉내냄
+
+    @Autowired
+    private UserRepository userRepository; // 진짜 레포지토리 로드
+
+    @BeforeEach
+    void setup() {
+      userRepository.save(new User(1L, "John"));
+    }
+
+    @Test
+    void getUser_ReturnsUserDto() throws Exception {
+      mockMvc.perform(get("/users/1"))
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.name").value("John"));
     }
   }
   ```

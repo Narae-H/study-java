@@ -207,7 +207,7 @@ public class ResponseDto<T> {
 | `@Min(value = …)` / `@Max(value = …)`                             | 숫자 타입 (주로 `int`, `long`, wrapper 타입)으로, 최소/최대값 제한 | 실수 타입 / 정수 타입 구분. 값 초과/미만 체크.                                   |
 | `@DecimalMin`, `@DecimalMax`                                      | 소수(decimal) 타입 등에 크기 제약 (문자열 기반 비교 포함)            | “inclusive” / “exclusive” 옵션 있을 수 있음.                           |
 | `@Positive` / `@PositiveOrZero` / `@Negative` / `@NegativeOrZero` | 양수/음수 여부 검사                                       | 보통 수치 필드(integer, long, BigDecimal 등) + wrapper 나 primitive 조심. |
-| `@Pattern(regexp = …, message = …)`                               | 문자열이 특정 정규 표현식에 맞는지 검사                            | regexp 정확하게 쓰기, escape 필요할 수 있음.                                |
+| `@Pattern(regexp = …, message = …)`                               | 문자열이 특정 [정규 표현식](https://github.com/Narae-H/study-utils)에 맞는지 검사                            | regexp 정확하게 쓰기, escape 필요할 수 있음.                                |
 | `@Email`                                                          | 이메일 형식 검사                                         | 구현체마다 엄격도가 다를 수 있으니 예시 테스트 해보는 게 좋음.                            |
 | `@Past` / `@PastOrPresent` / `@Future` / `@FutureOrPresent`       | 날짜/시간(Date, LocalDate, etc.)이 과거/미래인지 검사          | 시간대(timezone)이나 null 허용여부 주의.                                   |
 | `@AssertTrue` / `@AssertFalse`                                    | boolean 타입 값이 true 또는 false인지 검사                  | boolean 혹은 Boolean 타입.                                          |

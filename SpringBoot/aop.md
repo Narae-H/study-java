@@ -1,6 +1,3 @@
-NOTE: 관련 파일에서 연결: error-handling.md, security.md, tdd.md 등에서 간단히 언급 후 링크
-
-
 # AOP (Aspect-Oriented Programming): 관점 지향 프로그래밍
 
 ## 1. AOP란?
